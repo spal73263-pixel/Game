@@ -1,0 +1,849 @@
+import tkinter as tk
+from tkinter import messagebox
+import tkinter.font as tkfont
+import random
+import time
+
+# --- LOGIC GATES ---
+def AND_logic(inputs): return int(all(inputs))
+def OR_logic(inputs): return int(any(inputs))
+def XOR_logic(inputs): return int(sum(inputs) % 2 != 0)
+def NAND_logic(inputs): return 1 - int(all(inputs))
+def NOR_logic(inputs): return 1 - int(any(inputs))
+
+class GameApp(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("Escape Room: Complete Game")
+        self.geometry("900x750")
+        self.configure(bg="#1e1e2e")
+
+        self.title_font  = tkfont.Font(family="Helvetica", size=24, weight="bold")
+        self.header_font = tkfont.Font(family="Helvetica", size=16, weight="bold")
+        self.normal_font = tkfont.Font(family="Helvetica", size=14)
+
+        self.players = []
+
+        self.container = tk.Frame(self, bg="#1e1e2e")
+        self.container.pack(fill="both", expand=True)
+        self.container.grid_rowconfigure(0, weight=1)
+        self.container.grid_columnconfigure(0, weight=1)
+
+        self.frames = {}
+        for F in (MainMenu, Level1Screen, Level2Screen,
+                  Level3Screen, Level4Screen, Level5Screen):
+            page_name = F.__name__
+            frame = F(parent=self.container, controller=self)
+            self.frames[page_name] = frame
+            frame.grid(row=0, column=0, sticky="nsew")
+
+        self.show_frame("MainMenu")
+
+    def show_frame(self, page_name):
+        frame = self.frames[page_name]
+        frame.tkraise()
+        if hasattr(frame, 'on_show'):
+            frame.on_show()
+
+
+class BaseScreen(tk.Frame):
+    def __init__(self, parent, controller):
+        super().__init__(parent, bg="#1e1e2e")
+        self.controller = controller
+
+
+# ─────────────────────────────────────────────
+# MAIN MENU
+# ─────────────────────────────────────────────
+class MainMenu(BaseScreen):
+    def __init__(self, parent, controller):
+        super().__init__(parent, controller)
+
+        tk.Label(self, text="ESCOPIA: ESCAPE ROOM",
+                 font=controller.title_font, bg="#1e1e2e", fg="#eba0ac").pack(pady=50)
+        tk.Label(self, text="5 Levels of Logic, Memory, and Deduction.",
+                 font=controller.normal_font, bg="#1e1e2e", fg="#cdd6f4").pack(pady=20)
+
+        levels_info = (
+            "Level 1 — Guess the Number\n"
+            "Level 2 — Find the Imposter\n"
+            "Level 3 — Logic Gate Puzzle  ✦ NEW\n"
+            "Level 4 — Simon Says Memory  ✦ NEW\n"
+            "Level 5 — Code Breaker"
+        )
+        tk.Label(self, text=levels_info, font=controller.normal_font,
+                 bg="#1e1e2e", fg="#a6adc8", justify="left").pack(pady=10)
+
+        tk.Button(self, text="START NEW GAME", font=controller.header_font,
+                  bg="#89b4fa", fg="#11111b",
+                  command=lambda: controller.show_frame("Level1Screen")).pack(pady=40)
+
+
+# ─────────────────────────────────────────────
+# LEVEL 1 — GUESS THE NUMBER
+# ─────────────────────────────────────────────
+class Level1Screen(BaseScreen):
+    def __init__(self, parent, controller):
+        super().__init__(parent, controller)
+
+        tk.Label(self, text="Level 1: Guess the Number",
+                 font=controller.title_font, bg="#1e1e2e", fg="#f38ba8").pack(pady=20)
+
+        rules = "Rules:\n- The computer chose a number between 1 and 10.\n- Guess correctly to unlock Level 2!"
+        tk.Label(self, text=rules, font=controller.normal_font,
+                 bg="#1e1e2e", fg="#cdd6f4", justify="left").pack(pady=5)
+
+        self.target_number = random.randint(1, 10)
+
+        ef = tk.Frame(self, bg="#1e1e2e")
+        ef.pack(pady=20)
+        tk.Label(ef, text="Your Guess (1-10):", bg="#1e1e2e",
+                 fg="#cdd6f4", font=controller.normal_font).pack(side="left", padx=10)
+        self.guess_ent = tk.Entry(ef, font=controller.normal_font, width=10)
+        self.guess_ent.pack(side="left")
+
+        self.btn = tk.Button(self, text="SUBMIT GUESS", font=controller.header_font,
+                             bg="#f38ba8", fg="#11111b", command=self.evaluate)
+        self.btn.pack(pady=10)
+
+        self.result_lbl = tk.Label(self, text="", font=controller.header_font,
+                                   bg="#1e1e2e", fg="#a6e3a1")
+        self.result_lbl.pack(pady=10)
+
+        self.next_btn = tk.Button(self, text="Proceed to Level 2",
+                                  font=controller.normal_font, bg="#a6e3a1", fg="#11111b",
+                                  state="disabled",
+                                  command=lambda: controller.show_frame("Level2Screen"))
+        self.next_btn.pack(pady=10)
+
+    def on_show(self):
+        self.target_number = random.randint(1, 10)
+        self.result_lbl.config(text="")
+        self.next_btn.config(state="disabled")
+        self.btn.config(state="normal")
+        self.guess_ent.delete(0, tk.END)
+
+    def evaluate(self):
+        try:
+            val = int(self.guess_ent.get().strip())
+        except ValueError:
+            messagebox.showerror("Error", "Please enter a valid number.")
+            return
+
+        if val == self.target_number:
+            self.result_lbl.config(
+                text=f"✅ Correct! The number was {self.target_number}.", fg="#a6e3a1")
+            self.btn.config(state="disabled")
+            self.next_btn.config(state="normal")
+            self.controller.players = ["Player 1", "Player 2", "Player 3", "Player 4"]
+        elif val < self.target_number:
+            self.result_lbl.config(text=f"Too Low! {val} is not correct.", fg="#f38ba8")
+        else:
+            self.result_lbl.config(text=f"Too High! {val} is not correct.", fg="#f38ba8")
+
+
+# ─────────────────────────────────────────────
+# LEVEL 2 — FIND THE IMPOSTER
+# ─────────────────────────────────────────────
+class Level2Screen(BaseScreen):
+    WORD_POOLS = [
+        ("Ocean",    "It covers 70% of Earth",
+         ["Waves","Salt","Deep","Fish","Blue","Tide","Coral","Whale"],
+         ["Pencil","Soft","Round","Carpet","Fast","Tall"]),
+        ("Pizza",    "A famous Italian dish",
+         ["Cheese","Oven","Slice","Crust","Tomato","Pepperoni","Dough","Sauce"],
+         ["Silk","Metal","Cloud","Brick","River","Grape"]),
+        ("Space",    "Astronauts go here",
+         ["Stars","Rocket","Moon","Galaxy","Orbit","Void","Nebula","Mars"],
+         ["Leaf","Sand","Cake","Shoe","Mirror","Paper"]),
+        ("Guitar",   "A musician strums this",
+         ["Strings","Music","Fret","Strum","Chord","Acoustic","Pick","Tune"],
+         ["Wheel","Bottle","Clock","Lamp","Fence","Rain"]),
+        ("Forest",   "Full of trees and wildlife",
+         ["Trees","Green","Wildlife","Leaves","Trail","Canopy","Bark","Moss"],
+         ["Neon","Steel","Engine","Pixel","Socket","Marble"]),
+        ("Winter",   "The coldest season",
+         ["Snow","Cold","Ice","Frost","Scarf","Blizzard","Chill","Cocoa"],
+         ["Flame","Sand","Vine","Drum","Anchor","Brush"]),
+        ("Hospital", "Where doctors treat patients",
+         ["Doctor","Nurse","Medicine","Surgery","Patient","Bed","Syringe","Ward"],
+         ["Hammer","Petal","Compass","Feather","Chalk","Lantern"]),
+        ("Volcano",  "A mountain that erupts",
+         ["Lava","Eruption","Magma","Ash","Crater","Hot","Smoke","Molten"],
+         ["Pillow","Basket","Thread","Coin","Berry","Foam"]),
+        ("Library",  "A quiet place full of books",
+         ["Books","Shelves","Reading","Silence","Pages","Study","Novel","Borrow"],
+         ["Hammer","Engine","Splash","Rocket","Bounce","Blade"]),
+        ("Airplane", "It flies through the sky",
+         ["Wings","Pilot","Runway","Cockpit","Altitude","Landing","Turbine","Flight"],
+         ["Root","Blanket","Pencil","Soup","Candle","Brick"]),
+    ]
+
+    NPC_NAMES  = ["🔴 Red", "🔵 Blue", "🟢 Green", "🟡 Yellow"]
+    NPC_COLORS = ["#f38ba8", "#89b4fa", "#a6e3a1", "#f9e2af"]
+
+    def __init__(self, parent, controller):
+        super().__init__(parent, controller)
+
+        tk.Label(self, text="Level 2: Find the Imposter!",
+                 font=controller.title_font, bg="#1e1e2e", fg="#f9e2af").pack(pady=(5, 2))
+
+        rules = ("Rules:\n"
+                 "• You + 4 crewmates get a HINT each round — but 1 crewmate is the Imposter!\n"
+                 "• The Imposter does NOT know the word and bluffs.\n"
+                 "• Type YOUR word guess each round, then study everyone's clues.\n"
+                 "• After 4 rounds → VOTE to eject the Imposter.")
+        tk.Label(self, text=rules, font=controller.normal_font,
+                 bg="#1e1e2e", fg="#cdd6f4", justify="left").pack(pady=(0, 3))
+
+        self.info_lbl = tk.Label(self, text="", font=controller.header_font,
+                                 bg="#1e1e2e", fg="#fab387")
+        self.info_lbl.pack(pady=2)
+
+        input_frame = tk.Frame(self, bg="#1e1e2e")
+        input_frame.pack(pady=3)
+        tk.Label(input_frame, text="Your word guess:", font=controller.normal_font,
+                 bg="#1e1e2e", fg="#cdd6f4").pack(side="left", padx=5)
+        self.word_entry = tk.Entry(input_frame, font=controller.header_font,
+                                   width=15, justify="center")
+        self.word_entry.pack(side="left", padx=5)
+        self.submit_btn = tk.Button(input_frame, text="✏️  SUBMIT",
+                                    font=controller.header_font, bg="#f9e2af",
+                                    fg="#11111b", command=self.submit_word)
+        self.submit_btn.pack(side="left", padx=5)
+
+        # Clue table
+        table_outer = tk.Frame(self, bg="#313244", bd=2, relief="groove")
+        table_outer.pack(pady=3, padx=30, fill="x")
+
+        hdr = tk.Frame(table_outer, bg="#45475a")
+        hdr.pack(fill="x")
+        tk.Label(hdr, text="Player", width=14, font=controller.normal_font,
+                 bg="#45475a", fg="#cdd6f4", anchor="w").pack(side="left", padx=8, pady=4)
+        for r in range(1, 5):
+            tk.Label(hdr, text=f"Round {r}", width=12, font=controller.normal_font,
+                     bg="#45475a", fg="#cdd6f4").pack(side="left", padx=4, pady=4)
+
+        you_row = tk.Frame(table_outer, bg="#313244")
+        you_row.pack(fill="x")
+        tk.Label(you_row, text="⬜ YOU", width=14, font=controller.normal_font,
+                 bg="#313244", fg="#ffffff", anchor="w").pack(side="left", padx=8, pady=3)
+        self.player_clue_labels = []
+        for _ in range(4):
+            cl = tk.Label(you_row, text="—", width=12, font=controller.normal_font,
+                          bg="#313244", fg="#6c7086")
+            cl.pack(side="left", padx=4, pady=3)
+            self.player_clue_labels.append(cl)
+
+        self.clue_labels = []
+        for i in range(4):
+            row = tk.Frame(table_outer, bg="#313244")
+            row.pack(fill="x")
+            tk.Label(row, text=self.NPC_NAMES[i], width=14, font=controller.normal_font,
+                     bg="#313244", fg=self.NPC_COLORS[i], anchor="w").pack(side="left", padx=8, pady=3)
+            round_labels = []
+            for _ in range(4):
+                cl = tk.Label(row, text="—", width=12, font=controller.normal_font,
+                              bg="#313244", fg="#6c7086")
+                cl.pack(side="left", padx=4, pady=3)
+                round_labels.append(cl)
+            self.clue_labels.append(round_labels)
+
+        self.vote_btn = tk.Button(self, text="🗳  VOTE IMPOSTER",
+                                  font=controller.header_font, bg="#f38ba8",
+                                  fg="#11111b", state="disabled", command=self.open_vote)
+        self.vote_btn.pack(pady=5)
+
+        self.result_lbl = tk.Label(self, text="", font=controller.header_font,
+                                   bg="#1e1e2e", fg="#a6e3a1", wraplength=700)
+        self.result_lbl.pack(pady=3)
+
+        self.next_btn = tk.Button(self, text="Proceed to Level 3",
+                                  font=controller.normal_font, bg="#a6e3a1",
+                                  fg="#11111b", state="disabled",
+                                  command=lambda: controller.show_frame("Level3Screen"))
+        self.next_btn.pack(pady=5)
+
+    def on_show(self):
+        self.round_data    = random.sample(self.WORD_POOLS, 4)
+        self.imposter_idx  = random.randint(0, 3)
+        self.current_round = 0
+        for j in range(4):
+            self.player_clue_labels[j].config(text="—", fg="#6c7086")
+        for i in range(4):
+            for j in range(4):
+                self.clue_labels[i][j].config(text="—", fg="#6c7086")
+        self.info_lbl.config(text="Round 1 / 4  —  Type your word guess and hit SUBMIT!")
+        self._show_hint()
+        self.result_lbl.config(text="")
+        self.submit_btn.config(state="normal")
+        self.word_entry.config(state="normal")
+        self.word_entry.delete(0, tk.END)
+        self.vote_btn.config(state="disabled")
+        self.next_btn.config(state="disabled")
+
+    def _show_hint(self):
+        if self.current_round < 4:
+            _, hint, _, _ = self.round_data[self.current_round]
+            self.info_lbl.config(
+                text=f"Round {self.current_round + 1} / 4  —  Hint: \"{hint}\"")
+
+    def submit_word(self):
+        r = self.current_round
+        if r >= 4:
+            return
+        player_word = self.word_entry.get().strip()
+        if not player_word:
+            messagebox.showerror("Error", "Please type a word guess!")
+            return
+        self.player_clue_labels[r].config(text=player_word, fg="#ffffff")
+        self.word_entry.delete(0, tk.END)
+        _, _, crew_clues, imp_clues = self.round_data[r]
+        available_crew = list(crew_clues)
+        available_imp  = list(imp_clues)
+        random.shuffle(available_crew)
+        random.shuffle(available_imp)
+        for i in range(4):
+            if i == self.imposter_idx:
+                clue = available_imp.pop() if available_imp else "Hmm..."
+            else:
+                clue = available_crew.pop() if available_crew else "..."
+            self.clue_labels[i][r].config(text=clue, fg=self.NPC_COLORS[i])
+        self.current_round += 1
+        if self.current_round >= 4:
+            self.submit_btn.config(state="disabled")
+            self.word_entry.config(state="disabled")
+            self.vote_btn.config(state="normal")
+            self.info_lbl.config(text="All 4 rounds done! 🗳 Vote for the Imposter now!")
+        else:
+            self._show_hint()
+
+    def open_vote(self):
+        vote_win = tk.Toplevel(self, bg="#1e1e2e")
+        vote_win.title("Vote: Who is the Imposter?")
+        vote_win.geometry("420x350")
+        vote_win.resizable(False, False)
+        vote_win.grab_set()
+        tk.Label(vote_win, text="Who is the Imposter?",
+                 font=self.controller.header_font, bg="#1e1e2e", fg="#f9e2af").pack(pady=15)
+        tk.Label(vote_win,
+                 text="Study the clue table carefully.\nOne player's clues don't match the hints!",
+                 font=self.controller.normal_font, bg="#1e1e2e", fg="#bac2de",
+                 wraplength=380, justify="center").pack(pady=(0, 15))
+        for i in range(4):
+            tk.Button(vote_win, text=f"  EJECT {self.NPC_NAMES[i]}  ",
+                      font=self.controller.normal_font,
+                      bg=self.NPC_COLORS[i], fg="#11111b", width=22,
+                      command=lambda idx=i, w=vote_win: self.cast_vote(idx, w)).pack(pady=5)
+
+    def cast_vote(self, chosen_idx, vote_window):
+        vote_window.destroy()
+        self.vote_btn.config(state="disabled")
+        imposter_name = self.NPC_NAMES[self.imposter_idx]
+        reveal = "Secret words were: " + ", ".join(
+            f'R{i+1}="{self.round_data[i][0]}"' for i in range(4))
+        if chosen_idx == self.imposter_idx:
+            self.result_lbl.config(
+                text=f"🎉 Correct! {imposter_name} was the Imposter!\n{reveal}",
+                fg="#a6e3a1")
+            self.next_btn.config(state="normal")
+        else:
+            chosen_name = self.NPC_NAMES[chosen_idx]
+            self.result_lbl.config(
+                text=f"❌ Wrong! {chosen_name} was a Crewmate!\n"
+                     f"The Imposter was {imposter_name}.\n{reveal}",
+                fg="#f38ba8")
+            retry_btn = tk.Button(self, text="🔄  RETRY LEVEL 2",
+                                  font=self.controller.header_font,
+                                  bg="#fab387", fg="#11111b",
+                                  command=lambda: self._retry(retry_btn))
+            retry_btn.pack(pady=5)
+
+    def _retry(self, retry_btn):
+        retry_btn.destroy()
+        self.on_show()
+
+
+# ─────────────────────────────────────────────
+# LEVEL 3 — LOGIC GATE PUZZLE  ✦ NEW
+# ─────────────────────────────────────────────
+class Level3Screen(BaseScreen):
+    """
+    Player is shown a logic gate (AND / OR / XOR / NAND / NOR) and a target output (0 or 1).
+    They must flip input toggles until the gate produces that output.
+    3 puzzles per run, randomly chosen.
+    """
+
+    GATES = [
+        ("AND",  AND_logic,  "#89b4fa"),
+        ("OR",   OR_logic,   "#a6e3a1"),
+        ("XOR",  XOR_logic,  "#f9e2af"),
+        ("NAND", NAND_logic, "#fab387"),
+        ("NOR",  NOR_logic,  "#f38ba8"),
+    ]
+
+    # Gate truth-table descriptions shown as a hint
+    GATE_HINTS = {
+        "AND":  "Output is 1 only when ALL inputs are 1.",
+        "OR":   "Output is 1 when AT LEAST ONE input is 1.",
+        "XOR":  "Output is 1 when an ODD number of inputs are 1.",
+        "NAND": "Output is 0 only when ALL inputs are 1 (NOT AND).",
+        "NOR":  "Output is 0 when ANY input is 1 (NOT OR).",
+    }
+
+    def __init__(self, parent, controller):
+        super().__init__(parent, controller)
+
+        tk.Label(self, text="Level 3: Logic Gate Puzzle",
+                 font=controller.title_font, bg="#1e1e2e", fg="#89b4fa").pack(pady=(15, 5))
+
+        rules = ("Rules:\n"
+                 "• Each puzzle shows a logic gate and a TARGET output (0 or 1).\n"
+                 "• Toggle the input switches to make the gate produce the target.\n"
+                 "• Solve 3 puzzles in a row to proceed!")
+        tk.Label(self, text=rules, font=controller.normal_font,
+                 bg="#1e1e2e", fg="#cdd6f4", justify="left").pack(pady=5)
+
+        # Progress label
+        self.progress_lbl = tk.Label(self, text="", font=controller.header_font,
+                                     bg="#1e1e2e", fg="#fab387")
+        self.progress_lbl.pack(pady=5)
+
+        # Gate display card
+        card = tk.Frame(self, bg="#313244", bd=2, relief="groove")
+        card.pack(pady=10, padx=60, fill="x")
+
+        # Gate name + hint
+        self.gate_lbl = tk.Label(card, text="", font=controller.title_font,
+                                 bg="#313244", fg="#ffffff")
+        self.gate_lbl.pack(pady=(15, 2))
+
+        self.hint_lbl = tk.Label(card, text="", font=controller.normal_font,
+                                 bg="#313244", fg="#a6adc8", wraplength=600)
+        self.hint_lbl.pack(pady=(0, 10))
+
+        # Target output
+        target_frame = tk.Frame(card, bg="#313244")
+        target_frame.pack(pady=5)
+        tk.Label(target_frame, text="Target output:", font=controller.header_font,
+                 bg="#313244", fg="#cdd6f4").pack(side="left", padx=10)
+        self.target_lbl = tk.Label(target_frame, text="", font=controller.title_font,
+                                   bg="#313244", fg="#f9e2af", width=3)
+        self.target_lbl.pack(side="left")
+
+        # Input toggles (3 inputs)
+        toggles_frame = tk.Frame(card, bg="#313244")
+        toggles_frame.pack(pady=10)
+        self.input_vars = []
+        self.toggle_btns = []
+        for i in range(3):
+            col = tk.Frame(toggles_frame, bg="#313244")
+            col.pack(side="left", padx=20)
+            tk.Label(col, text=f"Input {i+1}", font=controller.normal_font,
+                     bg="#313244", fg="#cdd6f4").pack()
+            var = tk.IntVar(value=0)
+            self.input_vars.append(var)
+            btn = tk.Button(col, text="0", font=controller.title_font,
+                            bg="#45475a", fg="#cdd6f4", width=4,
+                            command=lambda v=var, b=None, idx=i: self._toggle(idx))
+            btn.pack(pady=5)
+            self.toggle_btns.append(btn)
+
+        # Live output display
+        out_frame = tk.Frame(card, bg="#313244")
+        out_frame.pack(pady=10)
+        tk.Label(out_frame, text="Current output:", font=controller.header_font,
+                 bg="#313244", fg="#cdd6f4").pack(side="left", padx=10)
+        self.output_lbl = tk.Label(out_frame, text="0", font=controller.title_font,
+                                   bg="#313244", fg="#f38ba8", width=3)
+        self.output_lbl.pack(side="left")
+
+        # Submit button
+        self.submit_btn = tk.Button(self, text="✅  LOCK IN ANSWER",
+                                    font=controller.header_font,
+                                    bg="#a6e3a1", fg="#11111b",
+                                    command=self.check_answer)
+        self.submit_btn.pack(pady=10)
+
+        self.result_lbl = tk.Label(self, text="", font=controller.header_font,
+                                   bg="#1e1e2e", fg="#a6e3a1")
+        self.result_lbl.pack(pady=5)
+
+        self.next_btn = tk.Button(self, text="Proceed to Level 4",
+                                  font=controller.normal_font, bg="#a6e3a1",
+                                  fg="#11111b", state="disabled",
+                                  command=lambda: controller.show_frame("Level4Screen"))
+        self.next_btn.pack(pady=10)
+
+    def on_show(self):
+        self.puzzles_solved = 0
+        self.total_puzzles  = 3
+        self._load_puzzle()
+        self.result_lbl.config(text="")
+        self.next_btn.config(state="disabled")
+
+    def _load_puzzle(self):
+        # Pick a random gate and generate a solvable puzzle
+        gate_name, gate_fn, gate_color = random.choice(self.GATES)
+        self.current_gate_fn   = gate_fn
+        self.current_gate_name = gate_name
+
+        # Random target output 0 or 1
+        self.target_output = random.randint(0, 1)
+
+        # Reset inputs
+        for i, var in enumerate(self.input_vars):
+            var.set(0)
+            self.toggle_btns[i].config(text="0", bg="#45475a", fg="#cdd6f4")
+
+        self.gate_lbl.config(text=f"⬛ {gate_name} Gate", fg=gate_color)
+        self.hint_lbl.config(text=self.GATE_HINTS[gate_name])
+        self.target_lbl.config(
+            text=str(self.target_output),
+            fg="#a6e3a1" if self.target_output == 1 else "#f38ba8")
+        self.progress_lbl.config(
+            text=f"Puzzle {self.puzzles_solved + 1} of {self.total_puzzles}")
+        self.submit_btn.config(state="normal")
+        self.result_lbl.config(text="")
+        self._update_output_display()
+
+    def _toggle(self, idx):
+        new_val = 1 - self.input_vars[idx].get()
+        self.input_vars[idx].set(new_val)
+        if new_val == 1:
+            self.toggle_btns[idx].config(text="1", bg="#89b4fa", fg="#11111b")
+        else:
+            self.toggle_btns[idx].config(text="0", bg="#45475a", fg="#cdd6f4")
+        self._update_output_display()
+
+    def _update_output_display(self):
+        inputs = [v.get() for v in self.input_vars]
+        out = self.current_gate_fn(inputs)
+        self.output_lbl.config(
+            text=str(out),
+            fg="#a6e3a1" if out == 1 else "#f38ba8")
+
+    def check_answer(self):
+        inputs = [v.get() for v in self.input_vars]
+        out    = self.current_gate_fn(inputs)
+        if out == self.target_output:
+            self.puzzles_solved += 1
+            if self.puzzles_solved >= self.total_puzzles:
+                self.submit_btn.config(state="disabled")
+                self.result_lbl.config(
+                    text="🎉 All puzzles solved! Door unlocked!", fg="#a6e3a1")
+                self.next_btn.config(state="normal")
+            else:
+                self.result_lbl.config(
+                    text=f"✅ Correct! ({self.puzzles_solved}/{self.total_puzzles} solved)",
+                    fg="#a6e3a1")
+                self.after(900, self._load_puzzle)
+        else:
+            inputs_str = ", ".join(str(v) for v in inputs)
+            self.result_lbl.config(
+                text=f"❌ Wrong! Inputs [{inputs_str}] → output {out}, not {self.target_output}. Try again!",
+                fg="#f38ba8")
+
+
+# ─────────────────────────────────────────────
+# LEVEL 4 — SIMON SAYS MEMORY GAME  ✦ NEW
+# ─────────────────────────────────────────────
+class Level4Screen(BaseScreen):
+    """
+    Simon Says: 4 coloured buttons flash in sequence — player must repeat.
+    5 rounds. Sequence grows by 1 each round (1 flash in round 1, 5 in round 5).
+    """
+
+    BTN_COLORS = {
+        "Red":    {"normal": "#c0404a", "lit": "#ff6b75", "text": "#ffffff"},
+        "Blue":   {"normal": "#2255aa", "lit": "#4da6ff", "text": "#ffffff"},
+        "Green":  {"normal": "#2a7a3a", "lit": "#4dcc65", "text": "#ffffff"},
+        "Yellow": {"normal": "#aa8800", "lit": "#ffd94d", "text": "#11111b"},
+    }
+    BTN_ORDER = ["Red", "Blue", "Green", "Yellow"]
+
+    FLASH_ON_MS  = 500
+    FLASH_OFF_MS = 200
+    BETWEEN_MS   = 300
+
+    def __init__(self, parent, controller):
+        super().__init__(parent, controller)
+
+        tk.Label(self, text="Level 4: Simon Says",
+                 font=controller.title_font, bg="#1e1e2e", fg="#a6e3a1").pack(pady=(15, 5))
+
+        rules = ("Rules:\n"
+                 "• Watch the colour sequence carefully — then repeat it!\n"
+                 "• The sequence grows by 1 button each round.\n"
+                 "• Complete 5 rounds to escape!")
+        tk.Label(self, text=rules, font=controller.normal_font,
+                 bg="#1e1e2e", fg="#cdd6f4", justify="left").pack(pady=5)
+
+        self.status_lbl = tk.Label(self, text="", font=controller.header_font,
+                                   bg="#1e1e2e", fg="#fab387")
+        self.status_lbl.pack(pady=8)
+
+        # Coloured buttons (2x2 grid)
+        grid_frame = tk.Frame(self, bg="#1e1e2e")
+        grid_frame.pack(pady=10)
+        self.btns = {}
+        positions = [("Red", 0, 0), ("Blue", 0, 1), ("Green", 1, 0), ("Yellow", 1, 1)]
+        for name, row, col in positions:
+            c = self.BTN_COLORS[name]
+            b = tk.Button(grid_frame, text=name, font=controller.header_font,
+                          bg=c["normal"], fg=c["text"],
+                          width=10, height=4, state="disabled",
+                          command=lambda n=name: self._player_press(n))
+            b.grid(row=row, column=col, padx=15, pady=15)
+            self.btns[name] = b
+
+        self.start_btn = tk.Button(self, text="▶  START GAME",
+                                   font=controller.header_font,
+                                   bg="#f9e2af", fg="#11111b",
+                                   command=self._start)
+        self.start_btn.pack(pady=10)
+
+        self.result_lbl = tk.Label(self, text="", font=controller.header_font,
+                                   bg="#1e1e2e", fg="#a6e3a1")
+        self.result_lbl.pack(pady=5)
+
+        self.next_btn = tk.Button(self, text="Proceed to Level 5",
+                                  font=controller.normal_font, bg="#a6e3a1",
+                                  fg="#11111b", state="disabled",
+                                  command=lambda: controller.show_frame("Level5Screen"))
+        self.next_btn.pack(pady=10)
+
+    def on_show(self):
+        self.sequence      = []
+        self.player_seq    = []
+        self.current_round = 0
+        self.total_rounds  = 5
+        self.accepting     = False
+        self.result_lbl.config(text="")
+        self.next_btn.config(state="disabled")
+        self.start_btn.config(state="normal")
+        self.status_lbl.config(text="Press START to begin!")
+        for name in self.BTN_ORDER:
+            self.btns[name].config(bg=self.BTN_COLORS[name]["normal"], state="disabled")
+
+    def _start(self):
+        self.start_btn.config(state="disabled")
+        self.sequence      = []
+        self.current_round = 0
+        self._next_round()
+
+    def _next_round(self):
+        self.current_round += 1
+        self.sequence.append(random.choice(self.BTN_ORDER))
+        self.player_seq = []
+        self.accepting  = False
+        self.status_lbl.config(
+            text=f"Round {self.current_round} / {self.total_rounds}  —  Watch the sequence!")
+        self.result_lbl.config(text="")
+        for name in self.BTN_ORDER:
+            self.btns[name].config(state="disabled")
+        self.after(600, lambda: self._play_sequence(0))
+
+    def _play_sequence(self, idx):
+        if idx >= len(self.sequence):
+            # Done flashing — let player respond
+            for name in self.BTN_ORDER:
+                self.btns[name].config(state="normal")
+            self.accepting = True
+            self.status_lbl.config(
+                text=f"Round {self.current_round} / {self.total_rounds}  —  Your turn! Repeat the sequence.")
+            return
+        name = self.sequence[idx]
+        self._flash_on(name)
+        self.after(self.FLASH_ON_MS, lambda: self._flash_off(name, idx))
+
+    def _flash_on(self, name):
+        c = self.BTN_COLORS[name]
+        self.btns[name].config(bg=c["lit"])
+
+    def _flash_off(self, name, idx):
+        c = self.BTN_COLORS[name]
+        self.btns[name].config(bg=c["normal"])
+        self.after(self.FLASH_OFF_MS,
+                   lambda: self.after(self.BETWEEN_MS,
+                                      lambda: self._play_sequence(idx + 1)))
+
+    def _player_press(self, name):
+        if not self.accepting:
+            return
+        # Flash to give feedback
+        self._flash_on(name)
+        self.after(180, lambda: self.btns[name].config(bg=self.BTN_COLORS[name]["normal"]))
+
+        self.player_seq.append(name)
+        idx = len(self.player_seq) - 1
+
+        if self.player_seq[idx] != self.sequence[idx]:
+            # Wrong press
+            self.accepting = False
+            for n in self.BTN_ORDER:
+                self.btns[n].config(state="disabled")
+            self.result_lbl.config(
+                text=f"❌ Wrong! Expected {self.sequence[idx]}, got {name}. Restarting round...",
+                fg="#f38ba8")
+            self.after(1500, self._retry_round)
+            return
+
+        if len(self.player_seq) == len(self.sequence):
+            # Completed this round
+            self.accepting = False
+            for n in self.BTN_ORDER:
+                self.btns[n].config(state="disabled")
+            if self.current_round >= self.total_rounds:
+                self.result_lbl.config(
+                    text="🎉 You memorised all 5 sequences! Door unlocked!", fg="#a6e3a1")
+                self.next_btn.config(state="normal")
+            else:
+                self.result_lbl.config(
+                    text=f"✅ Round {self.current_round} complete!", fg="#a6e3a1")
+                self.after(1000, self._next_round)
+
+    def _retry_round(self):
+        # Replay the same sequence
+        self.player_seq = []
+        self.accepting  = False
+        self.status_lbl.config(
+            text=f"Round {self.current_round} / {self.total_rounds}  —  Watch again...")
+        for name in self.BTN_ORDER:
+            self.btns[name].config(state="disabled")
+        self.after(400, lambda: self._play_sequence(0))
+
+
+# ─────────────────────────────────────────────
+# LEVEL 5 — CODE BREAKER  (formerly Level 3)
+# ─────────────────────────────────────────────
+class Level5Screen(BaseScreen):
+    def __init__(self, parent, controller):
+        super().__init__(parent, controller)
+
+        self.code      = []
+        self.time_left = 120
+        self.running   = False
+
+        tk.Label(self, text="Level 5: Code Breaker",
+                 font=controller.title_font, bg="#1e1e2e", fg="#cba6f7").pack(pady=10)
+
+        rules = ("Rules:\n"
+                 "- Crack the 4-digit code to unlock the final door.\n"
+                 "- You have 120 seconds.\n"
+                 "- Clues per digit: 'Correct' (right digit & place),\n"
+                 "  'Misplaced' (right digit, wrong place), 'Wrong' (not in code).")
+        tk.Label(self, text=rules, font=controller.normal_font,
+                 bg="#1e1e2e", fg="#cdd6f4", justify="left").pack(pady=5)
+
+        self.timer_lbl = tk.Label(self, text="120.0s", font=controller.header_font,
+                                  bg="#1e1e2e", fg="#f38ba8")
+        self.timer_lbl.pack(pady=5)
+
+        inp_frame = tk.Frame(self, bg="#1e1e2e")
+        inp_frame.pack(pady=10)
+        self.guess_ent = tk.Entry(inp_frame, font=controller.header_font,
+                                  width=10, justify="center")
+        self.guess_ent.pack(side="left", padx=10)
+        self.guess_btn = tk.Button(inp_frame, text="GUESS", font=controller.header_font,
+                                   bg="#cba6f7", fg="#11111b", command=self.check_guess)
+        self.guess_btn.pack(side="left")
+
+        self.logs = tk.Text(self, width=55, height=10, font=controller.normal_font,
+                            bg="#313244", fg="#cdd6f4", state="disabled")
+        self.logs.pack(pady=10)
+
+        self.start_btn = tk.Button(self, text="START TIMER", font=controller.header_font,
+                                   bg="#a6e3a1", fg="#11111b", command=self.start_game)
+        self.start_btn.pack(pady=10)
+
+    def on_show(self):
+        self.code      = [str(random.randint(0, 9)) for _ in range(4)]
+        self.time_left = 120
+        self.running   = False
+        self.timer_lbl.config(text="120.0s", fg="#f38ba8")
+        self.logs.config(state="normal")
+        self.logs.delete(1.0, tk.END)
+        self.logs.config(state="disabled")
+        self.log_msg("System ready. Press START TIMER when ready.")
+        self.guess_btn.config(state="disabled")
+        self.start_btn.config(state="normal")
+
+    def start_game(self):
+        self.running = True
+        self.start_btn.config(state="disabled")
+        self.guess_btn.config(state="normal")
+        self.code = [str(random.randint(0, 9)) for _ in range(4)]
+        self.logs.config(state="normal")
+        self.logs.delete(1.0, tk.END)
+        self.logs.config(state="disabled")
+        self.log_msg("Started! Timer is running...")
+        self.start_time = time.time()
+        self.update_timer()
+
+    def update_timer(self):
+        if not self.running:
+            return
+        elapsed = time.time() - self.start_time
+        rem = 120 - elapsed
+        if rem <= 0:
+            rem = 0
+            self.running = False
+            self.timer_lbl.config(text="0.0s", fg="#f38ba8")
+            self.guess_btn.config(state="disabled")
+            self.log_msg(f"TIME'S UP! The code was {''.join(self.code)}.")
+            messagebox.showinfo("Game Over", "You failed to escape. Try again from the start!")
+            return
+        self.timer_lbl.config(text=f"{rem:.1f}s")
+        self.after(100, self.update_timer)
+
+    def log_msg(self, msg):
+        self.logs.config(state="normal")
+        self.logs.insert(tk.END, msg + "\n")
+        self.logs.see(tk.END)
+        self.logs.config(state="disabled")
+
+    def check_guess(self):
+        if not self.running:
+            return
+        guess = self.guess_ent.get().strip()
+        if len(guess) != 4 or not guess.isdigit():
+            messagebox.showerror("Error", "Enter exactly 4 digits.")
+            return
+        self.guess_ent.delete(0, tk.END)
+
+        # ── Proper Mastermind hint (handles duplicate digits correctly) ──
+        code_copy  = list(self.code)
+        guess_copy = list(guess)
+        clues = [""] * 4
+
+        # First pass: find exact matches
+        for i in range(4):
+            if guess_copy[i] == code_copy[i]:
+                clues[i] = "Correct"
+                code_copy[i]  = None
+                guess_copy[i] = None
+
+        # Second pass: find misplaced digits
+        for i in range(4):
+            if guess_copy[i] is None:
+                continue
+            if guess_copy[i] in code_copy:
+                clues[i] = "Misplaced"
+                code_copy[code_copy.index(guess_copy[i])] = None
+            else:
+                clues[i] = "Wrong"
+
+        clue_str = ", ".join(clues)
+        self.log_msg(f"Guess: {guess} → {clue_str}")
+
+        if list(guess) == self.code:
+            self.running = False
+            self.guess_btn.config(state="disabled")
+            self.log_msg("🎉 ACCESS GRANTED — You escaped!")
+            messagebox.showinfo("🎉 WINNER!", "You cracked the code and ESCAPED the room!\nCongratulations!")
+
+
+if __name__ == "__main__":
+    app = GameApp()
+    app.mainloop()
